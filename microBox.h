@@ -78,8 +78,8 @@ private:
     static void CatCB(char** pParam, uint8_t parCnt);
     static void watchCB(char** pParam, uint8_t parCnt);
     static void watchcsvCB(char** pParam, uint8_t parCnt);
-    static void LoadParCB(char **pParam, uint8_t parCnt);
     static void SaveParCB(char **pParam, uint8_t parCnt);
+    static void printParams(char **pParam, uint8_t parCnt);
 
     void ListDir(char **pParam, uint8_t parCnt, bool listLong=false);
     void ChangeDir(char **pParam, uint8_t parCnt);
@@ -87,7 +87,6 @@ private:
     void Cat(char** pParam, uint8_t parCnt);
     void watch(char** pParam, uint8_t parCnt);
     void watchcsv(char** pParam, uint8_t parCnt);
-
 private:
     void ShowPrompt();
     uint8_t ParseCmdParams(char *pParam);
@@ -111,7 +110,7 @@ private:
     double parseFloat(char *pBuf);
     bool HandleEscSeq(unsigned char ch);
     void ReadWriteParamEE(bool write);
-
+    void printEnv();
 private:
     char currentDir[MAX_PATH_LEN];
 
@@ -137,5 +136,7 @@ private:
 };
 
 extern microBox microbox;
+void eeprom_read_block(void *dst, const void *src, size_t n);
+void eeprom_write_block(const void *src, void *dst, size_t n);
 
 #endif

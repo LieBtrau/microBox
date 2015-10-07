@@ -7,7 +7,11 @@
 
 #include <microBox.h>
 #include <avr/pgmspace.h>
+#ifdef ARDUINO_STM_NUCLEU_F103RB
+#include <EEPROM.h>
+#else
 #include <avr/eeprom.h>
+#endif
 
 microBox microbox;
 const prog_char fileDate[] PROGMEM = __DATE__;
@@ -17,12 +21,12 @@ CMD_ENTRY microBox::Cmds[] =
     {"cat", microBox::CatCB},
     {"cd", microBox::ChangeDirCB},
     {"echo", microBox::EchoCB},
-    {"loadpar", microBox::LoadParCB},
     {"ll", microBox::ListLongCB},
     {"ls", microBox::ListDirCB},
-    {"savepar", microBox::SaveParCB},
+    {"save", microBox::SaveParCB},
     {"watch", microBox::watchCB},
     {"watchcsv", microBox::watchcsvCB},
+    {"printenv", microBox::printParams},
     {NULL, NULL}
 };
 
@@ -64,6 +68,7 @@ void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho,
     machName = hostName;
     ParmPtr[0] = NULL;
     strcpy(currentDir, "/");
+    microbox.ReadWriteParamEE(false);
     ShowPrompt();
 }
 
@@ -857,12 +862,12 @@ double microBox::parseFloat(char *pBuf)
 // echo 82.00 > /dev/param
 void microBox::Echo(char **pParam, uint8_t parCnt)
 {
-    uint8_t idx;
+    volatile uint8_t idx;
 
     if((parCnt == 3) && (strcmp_P(pParam[1], PSTR(">")) == 0))
     {
         idx = GetParamIdx(pParam[2]);
-        if(idx != -1)
+        if(idx != 0xFF)
         {
             if(Params[idx].parType & PARTYPE_RW)
             {
@@ -917,7 +922,7 @@ uint8_t microBox::Cat_int(char* pParam)
     int8_t idx;
 
     idx = GetParamIdx(pParam);
-    if(idx != -1)
+    if(idx != 0xFF)
     {
         PrintParam(idx);
         return 1;
@@ -966,11 +971,25 @@ void microBox::ReadWriteParamEE(bool write)
             psize = Params[i].len;
 
         if(write)
-            eeprom_write_block(Params[i].pParam, (void*)pos, psize);
+            eeprom_write_block(Params[i].pParam, (void*)pos, psize)
+            ;
         else
-            eeprom_read_block(Params[i].pParam, (void*)pos, psize);
+            eeprom_read_block(Params[i].pParam, (void*)pos, psize)
+            ;
         pos += psize;
         i++;
+    }
+}
+
+void microBox::printEnv()
+{
+    uint8_t i=0;
+
+    while(Params[i].paramName != NULL)
+    {
+        Serial.print(Params[i].paramName);
+        Serial.print('=');
+        PrintParam(i++);
     }
 }
 
@@ -1009,13 +1028,51 @@ void microBox::watchcsvCB(char** pParam, uint8_t parCnt)
     microbox.watchcsv(pParam, parCnt);
 }
 
-void microBox::LoadParCB(char **pParam, uint8_t parCnt)
-{
-    microbox.ReadWriteParamEE(false);
-}
-
 void microBox::SaveParCB(char **pParam, uint8_t parCnt)
 {
     microbox.ReadWriteParamEE(true);
 }
 
+void microBox::printParams(char **pParam, uint8_t parCnt)
+{
+    microbox.printEnv();
+}
+
+void eeprom_write_block(const void *src, void *dst, size_t n)
+{
+    uint16* word=(uint16 *)src;
+    uint32 pdst=(uint32)dst;
+
+    if(EEPROM.init()){
+        return;
+    }
+    for(int i=0;i<=n/2;i++){
+        if(EEPROM.write(pdst+i, word[i])){
+            return;
+        }
+    }
+}
+
+void eeprom_read_block(void *dst, const void *src, size_t n)
+{
+    uint32 psrc=(uint32)src;
+    uint16* pdst=(uint16*)dst;
+
+    if(EEPROM.init()){
+        return;
+    }
+    for(int i=0;i<n/2;i++){
+        if(EEPROM.read(psrc+i,pdst+i)){
+            return;
+        }
+    }
+    //For uneven sizes, the last read operation will only write one byte to the destination.
+    if(n & 1){
+        uint16 lastword;
+        if(EEPROM.read(psrc+n/2, &lastword)){
+            return;
+        }
+        pdst[n/2] &= 0xFF00;
+        pdst[n/2] |= lowByte(lastword);
+    }
+}
