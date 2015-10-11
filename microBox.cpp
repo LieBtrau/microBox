@@ -111,7 +111,7 @@ void microBox::ShowPrompt()
     Serial.print(machName);
     Serial.print(F(":"));
     Serial.print(currentDir);
-    Serial.print(F(">"));
+    Serial.print(F("> "));
 }
 
 uint8_t microBox::ParseCmdParams(char *pParam)
