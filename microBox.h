@@ -13,7 +13,7 @@
 
 #define MAX_CMD_NUM 20
 
-#define MAX_CMD_BUF_SIZE 40
+#define MAX_CMD_BUF_SIZE 100
 #define MAX_PATH_LEN 10
 
 #define PARTYPE_INT    0x01
